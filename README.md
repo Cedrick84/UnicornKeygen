@@ -33,7 +33,9 @@ class-dump -A /Users/cedrick/Desktop/hex/Unicorn.app
 - (id)md5HexHash;    // IMP=0x00002ba5
 @end
 ```
-From this small snippet we can pretty much guess what’s going on here; the validate function is invoked on a button click (taking the button as arg1), this uses the contents of the name & serial fields and passes this to the validateSerial:forName: method. Somewhere in this method something is converted to an MD5 Hex Hash. But at this point this is merely speculation. If I this was an iOS app that I had to research I would probably hook this method and make it simply return YES all the time. We've got our point of attack, but how do we attack it? If I want to patch the method to always return YES I should probably patch it too, but as we’re trying to learn something new lets try to actually patch the binary or really learn what’s going on inside. So we need to take a look under the hood, lets fire up lldb and see if we can  get the internals.
+From this small snippet we can pretty much guess what’s going on here; the validate function is invoked on a button click (taking the button as arg1), this uses the contents of the name & serial fields and passes this to the validateSerial:forName: method. Somewhere in this method something is converted to an MD5 Hex Hash. But at this point this is merely speculation. If I this was an iOS app that I had to research I would probably hook this method and make it simply return YES all the time. We've got our point of attack, but how do we attack it? 
+
+As we’re trying to learn something new lets try to actually reverse the algorithm instead of 'simply' patching the method to always retrun YES. We need to take a look under the hood, lets fire up lldb and see if we can get the internals.
 ```bash
 Cedricks-iMac:~ cedrick$ lldb /Users/cedrick/Desktop/hex/Unicorn.app
 (lldb) target create "/Users/cedrick/Desktop/hex/Unicorn.app"
@@ -87,7 +89,7 @@ Unicorn`-[UnicornAppDelegate validateSerial:forName:]:
 ```
 Okay that’s a lot of gibberish there, I remember something about ebp and esp from school… Something about stack and base pointers. To defeat this Unicorn I should refresh my memory (get it…? “memory") and understand what’s going on here. [Back to school!](https://www.youtube.com/playlist?list=PLPXsMt57rLthf58PFYE9gOAsuyvs7T5W9)
 
-Now that the assembly above doesn’t look scary anymore, and because Objective-C is a runtime language I should be able to reverse engineer the whole application just by using the debugger and breaking on the msgSend. I found this excellent [paper](https://reverse.put.as/wp-content/uploads/2011/06/objective-c-internals.pdf) by André Pang explaining this in dept. At this point I feel comfortable like I got him. Let’s try to work our magic in the debugger.
+Now that the assembly above doesn’t look scary anymore, and knowing Objective-C is a runtime language, I should be able to reverse engineer the whole method just by using the debugger and breaking on the msgSend. I found this excellent [paper](https://reverse.put.as/wp-content/uploads/2011/06/objective-c-internals.pdf) by André Pang explaining this in dept. At this point I feel comfortable I got him. Let’s try to work our magic in the debugger.
 ```bash
 (lldb) b *0x00002a41
 Breakpoint 1: where = Unicorn`-[UnicornAppDelegate validateSerial:forName:], address = 0x00002a41
@@ -114,7 +116,7 @@ We should be able to PO this
 (lldb) po 0x3044
 +unicorn
 ```
-Hmmm so we have a constant string “+unicorn”, my first guess is that this is some kind of salt added to the name. Let’s confirm this is what’s going on. The thing most interesting to me is what happens in the objc_msgSend methods. We’ve learned how a Objective-C method is invoked and what this does in memory, so if we step into these methods we should be able to exactly figure out what’s going on here. We step next until we get to the message send method, there we step in.
+Hmmm so we have a constant string “+unicorn”, my first guess is that this is some kind of salt added to the name. Let’s confirm this is what’s really going on. The thing most interesting to me is what happens in the objc_msgSend methods. We’ve learned how a Objective-C method is invoked and what this does in memory, so if we step into these methods we should be able to exactly figure out what’s going on. We step next until we get to the message send method, there we step in.
 ```bash
 (lldb) s
 Process 894 stopped
