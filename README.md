@@ -105,7 +105,7 @@ Unicorn`-[UnicornAppDelegate validateSerial:forName:]:
     0x2a47 <+6>: movl   $0x3044, 0x8(%esp)
 ```
 The breakpoint is hit, let the fun begin.
-Somethings stand out in the assembly, for instance 0x3044. Let’s see if we can figure out what this is
+Somethings stands out in this assembly; 0x3044. Let’s see if we can figure out what this is
 
 ```bash
 (lldb) x/a 0x3044
